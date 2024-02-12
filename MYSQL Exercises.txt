@@ -49,9 +49,9 @@ CREATE table dept_manager(
 	);
 	
 
-source C:\Users\svirgile\OneDrive - Albany Beck\Desktop\data\;
+source C:
 
-MariaDB [employee_db]> source C:\Users\svirgile\OneDrive - Albany Beck\Desktop\data\salaries3.sql
+MariaDB [employee_db]> source
 
 1.	Write a query to display all details of an employee who has
  the second highest pay.
