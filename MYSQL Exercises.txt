@@ -1,0 +1,425 @@
+CREATE table employees(
+	emp_no int,
+	birth_date date,
+	first_name varchar(14),
+	last_name varchar(16),
+	gender enum('M',"F"),
+	hire_date date,
+	CONSTRAINT pk_emp PRIMARY KEY(emp_no)
+	);
+	
+CREATE table salaries(
+	emp_no int,
+	salary int,
+	from_date date,
+	to_date date,
+	CONSTRAINT fk_empl FOREIGN KEY(emp_no) REFERENCES employees(emp_no)
+	);
+
+CREATE table titles(
+	emp_no int,
+	title varchar(50),
+	from_date date,
+	to_date date,
+	CONSTRAINT fk_empl_t FOREIGN KEY(emp_no) REFERENCES employees(emp_no)
+	);
+
+CREATE table departments(
+	dept_no char(4),
+	dept_name varchar(40),
+	CONSTRAINT pk_dept PRIMARY KEY(dept_no)
+	);
+	
+CREATE table dept_emp(
+	emp_no int,
+	dept_no char(4),
+	from_date date,
+	to_date date,
+	CONSTRAINT fk_empl_d_t FOREIGN KEY(emp_no) REFERENCES employees(emp_no),
+	CONSTRAINT fk_dept_d_t FOREIGN KEY (dept_no) REFERENCES departments(dept_no)
+	);
+
+CREATE table dept_manager(
+	emp_no int,
+	dept_no char(4),
+	from_date date,
+	to_date date,
+	CONSTRAINT fk_empl_d_m FOREIGN KEY(emp_no) REFERENCES employees(emp_no),
+	CONSTRAINT fk_dept_d_m FOREIGN KEY (dept_no) REFERENCES departments(dept_no)	
+	);
+	
+
+source C:\Users\svirgile\OneDrive - Albany Beck\Desktop\data\;
+
+MariaDB [employee_db]> source C:\Users\svirgile\OneDrive - Albany Beck\Desktop\data\salaries3.sql
+
+1.	Write a query to display all details of an employee who has
+ the second highest pay.
+SELECT e.*, s.salary
+FROM employees e
+INNER JOIN (
+    SELECT emp_no, salary
+    FROM salaries
+    ORDER BY salary DESC
+    LIMIT 1 OFFSET 1
+) s ON e.emp_no = s.emp_no;
++--------+------------+------------+-----------+--------+------------+--------+
+| emp_no | birth_date | first_name | last_name | gender | hire_date  | salary |
++--------+------------+------------+-----------+--------+------------+--------+
+|  43624 | 1953-11-14 | Tokuyasu   | Pesch     | M      | 1985-03-26 | 157821 |
++--------+------------+------------+-----------+--------+------------+--------+
+
+SELECT e.*, s.salary
+FROM employees e
+INNER JOIN (
+    SELECT emp_no, salary
+    FROM salaries
+    ORDER BY salary DESC
+    LIMIT 1, 1
+) s ON e.emp_no = s.emp_no;
+
+SELECT e.*, s.salary
+FROM employee e
+INNER JOIN (
+    SELECT emp_no, salary
+    FROM salaries
+    WHERE salary < (SELECT MAX(salary) FROM salaries)
+) s ON e.emp_no = s.emp_no;
+
+SELECT e.*, s.salary
+FROM employees e
+INNER JOIN salaries s ON e.emp_no = s.emp_no
+WHERE s.salary = (
+    SELECT MAX(salary)
+    FROM salaries
+    WHERE salary < (SELECT MAX(salary) FROM salaries)
+);
+
+SELECT e.*, s.salary
+FROM employees e
+INNER JOIN salaries s ON e.emp_no = s.emp_no
+WHERE s.salary = (
+    SELECT MAX(salary)
+    FROM salaries
+    WHERE salary < (
+    SELECT MAX(salary)
+    FROM salaries)
+	);
+  
+=> 2.	Write a query to display the average salary, max salary and min salary by title,
+round to nearest whole number and order by ascending order.
+  
+SELECT 
+    t.title,
+    ROUND(AVG(s.salary), 0) AS avg_salary,
+    ROUND(MAX(s.salary), 0) AS max_salary,
+    ROUND(MIN(s.salary), 0) AS min_salary
+FROM 
+    titles t
+INNER JOIN 
+    salaries s ON t.emp_no = s.emp_no
+GROUP BY 
+    t.title
+ORDER BY 
+    t.title ASC;
+
++--------------------+------------+------------+------------+
+| title              | avg_salary | max_salary | min_salary |
++--------------------+------------+------------+------------+
+| Assistant Engineer |      59305 |     133712 |      38850 |
+| Engineer           |      59508 |     140784 |      38849 |
+| Manager            |      66924 |     108407 |      40000 |
+| Senior Engineer    |      60543 |     140784 |      38786 |
+| Senior Staff       |      70471 |     158220 |      38735 |
+| Staff              |      69309 |     158220 |      38735 |
+| Technique Leader   |      59294 |     144434 |      38623 |
++--------------------+------------+------------+------------+
+
+3.	Write a query to display all the employees that 
+do not contain vowels in their full name 
+and display the department they work in along with title.
+
+SELECT 
+    e.emp_no,
+    e.first_name,
+    e.last_name,
+    d.dept_name AS department,
+    t.title AS Job_Title
+FROM 
+    employees e
+INNER JOIN
+	dept_emp de ON e.emp_no = de.emp_no
+INNER JOIN 
+    departments d ON de.dept_no = d.dept_no
+INNER JOIN 
+    titles t ON e.emp_no = t.emp_no
+WHERE 
+    e.first_name REGEXP '^[^aeiouAEIOU]*$' AND
+    e.last_name REGEXP '^[^aeiouAEIOU]*$';
+	
+Empty set (3.577 sec)
+
+4.	Write a query to display all the employees that have 
+worked in 2 or more departments. 
+Show all their details and departments they work in.
+
+- Added total number of roles held in company
+
+SELECT 
+    e.*,
+	COUNT(t.emp_no) AS total_num_of_roles,
+    GROUP_CONCAT(DISTINCT d.dept_name) AS depts_worked_in
+FROM 
+    employees e
+INNER JOIN 
+    dept_emp de ON e.emp_no = de.emp_no
+INNER JOIN
+	titles t ON e.emp_no = t.emp_no
+INNER JOIN 
+    departments d ON de.dept_no = d.dept_no
+GROUP BY 
+    e.emp_no
+HAVING
+    COUNT(DISTINCT d.dept_no) >= 2
+LIMIT 20;
+
+5.	Write a query to display the month and year when most employees 
+were hired along with total number of hires.
+
+SELECT
+    DATE_FORMAT(hire_date, '%Y-%m') AS highest_hiring_period,
+    COUNT(*) AS total_hires
+FROM
+    employees
+    GROUP BY
+    highest_hiring_period
+ORDER BY
+    total_hires DESC
+LIMIT 1;
++-----------------+-------------+
+| hire_month_year | total_hires |
++-----------------+-------------+
+| 1985-03         |        3431 |
++-----------------+-------------+
+
+6.	Write a query to display the month and year when second highest number 
+of employees were hired along with total number of hires.
+
+SELECT
+    DATE_FORMAT(hire_date, '%Y-%m') AS 2nd_highest_hiring_period,
+    COUNT(*) AS total_hires
+FROM
+    employees
+    GROUP BY
+    2nd_highest_hiring_period
+ORDER BY
+    total_hires DESC
+LIMIT 1, 1;
+
+SELECT 
+    DATE_FORMAT(hire_date, '%Y-%m') AS 2nd_highest_hiring_period,
+    COUNT(*) AS total_hires
+FROM 
+    employees
+GROUP BY 
+    2nd_highest_hiring_period
+HAVING
+    total_hires = (
+        SELECT 
+            MAX(total_hires)
+        FROM 
+            (
+                SELECT 
+                    COUNT(*) AS total_hires
+                FROM 
+                    employees
+                GROUP BY 
+                    DATE_FORMAT(hire_date, '%Y-%m')
+                ORDER BY 
+                    total_hires DESC
+                LIMIT 1 OFFSET 1
+            ) AS second_highest
+    );
+
+7.	Write a query to display the sum of Male (M) and Female (F) employees and 
+order the result in descending order.
+
+SELECT 
+    gender,
+    COUNT(*) AS total_employees
+FROM 
+    employees
+GROUP BY 
+    gender
+ORDER BY 
+    total_employees DESC;
+
+Write a query to display details of youngest employee in each department along
+ with their age.
+
+SELECT 
+    emp_no,
+    first_name,
+    last_name,
+    birth_date,
+    TIMESTAMPDIFF(YEAR, birth_date, CURDATE()) AS age,
+    dept_name,
+	rank AS Rk
+FROM (
+    SELECT 
+        e.emp_no,
+        e.first_name,
+        e.last_name,
+        e.birth_date,
+        de.dept_no,
+        d.dept_name,
+        ROW_NUMBER() OVER (PARTITION BY de.dept_no ORDER BY e.birth_date DESC, e.hire_date ASC) AS rank
+    FROM 
+        employees e
+    INNER JOIN 
+        dept_emp de ON e.emp_no = de.emp_no
+    INNER JOIN 
+        departments d ON de.dept_no = d.dept_no
+) AS ranked_employees
+WHERE 
+    rank = 1;
+	
+SELECT 
+    e.emp_no,
+    e.first_name,
+    e.last_name,
+    e.birth_date,
+    TIMESTAMPDIFF(YEAR, e.birth_date, CURDATE()) AS age,
+    de.dept_no,
+    d.dept_name
+FROM 
+    employees e
+INNER JOIN 
+    dept_emp de ON e.emp_no = de.emp_no
+INNER JOIN 
+    departments d ON de.dept_no = d.dept_no
+INNER JOIN (
+    SELECT 
+        de.dept_no,
+        MAX(e.birth_date) AS max_birth_date
+    FROM 
+        employees e
+    INNER JOIN 
+        dept_emp de ON e.emp_no = de.emp_no
+    GROUP BY 
+        de.dept_no
+) AS youngest ON de.dept_no = youngest.dept_no AND e.birth_date = youngest.max_birth_date
+GROUP BY dept_name;
+
+SELECT 
+    e.emp_no,
+    e.first_name,
+    e.last_name,
+    e.birth_date,
+    TIMESTAMPDIFF(YEAR, e.birth_date, CURDATE()) AS age,
+    de.dept_no,
+    d.dept_name
+FROM 
+    employees e
+INNER JOIN 
+    dept_emp de ON e.emp_no = de.emp_no
+INNER JOIN 
+    departments d ON de.dept_no = d.dept_no
+WHERE 
+    (e.birth_date, de.dept_no) IN (
+        SELECT 
+            MAX(e2.birth_date) AS max_birth_date,
+            de2.dept_no
+        FROM 
+            employees e2
+        INNER JOIN 
+            dept_emp de2 ON e2.emp_no = de2.emp_no
+		WHERE
+			de2.to_date = '9999-01-01'
+        GROUP BY 
+            de2.dept_no
+    ) 
+GROUP BY dept_name;
+
+9.	Write a query to display number of male and female employees in each department.
+
+- Added percentage of females to the total per department
+
+SELECT 
+    d.dept_no,
+    d.dept_name,
+    SUM(e.gender = 'M') AS males_total,
+    SUM(e.gender = 'F') AS females_total,
+	COUNT(e.emp_no) AS dept_total,
+	concat(round((SUM(e.gender = 'F')/COUNT(e.emp_no)*100),2),'%') as perc_females
+FROM 
+    employees e
+INNER JOIN 
+    dept_emp de ON e.emp_no = de.emp_no
+INNER JOIN 
+    departments d ON de.dept_no = d.dept_no
+GROUP BY 
+    d.dept_no,
+    d.dept_name;
+
+10.	Write a query to create a view on query 9 and read data and delete the view.
+
+CREATE VIEW dept_gender_view AS
+SELECT 
+    d.dept_no,
+    d.dept_name,
+    SUM(e.gender = 'M') AS males_total,
+    SUM(e.gender = 'F') AS females_total,
+	COUNT(e.emp_no) AS dept_total,
+	concat(round((SUM(e.gender = 'F')/COUNT(e.emp_no)*100),2),'%') as perc_females
+FROM 
+    employees e
+INNER JOIN 
+    dept_emp de ON e.emp_no = de.emp_no
+INNER JOIN 
+    departments d ON de.dept_no = d.dept_no
+GROUP BY 
+    d.dept_no,
+    d.dept_name;
+	
+Query OK, 0 rows affected (0.009 sec)
+
+MariaDB [employee_db]> DESC dept_gender_view;
++---------------+---------------+------+-----+---------+-------+
+| Field         | Type          | Null | Key | Default | Extra |
++---------------+---------------+------+-----+---------+-------+
+| dept_no       | char(4)       | NO   |     | NULL    |       |
+| dept_name     | varchar(40)   | YES  |     | NULL    |       |
+| males_total   | decimal(23,0) | YES  |     | NULL    |       |
+| females_total | decimal(23,0) | YES  |     | NULL    |       |
+| dept_total    | bigint(21)    | NO   |     | 0       |       |
+| perc_females  | varchar(32)   | YES  |     | NULL    |       |
++---------------+---------------+------+-----+---------+-------+
+6 rows in set (0.015 sec)
+
+MariaDB [employee_db]> DROP VIEW dept_gender_view;
+Query OK, 0 rows affected (0.001 sec)
+
+11.	Write a query to create a stored procedure on query 9.
+
+DELIMITER //
+CREATE PROCEDURE dept_gender_proc()
+BEGIN
+SELECT 
+    d.dept_no,
+    d.dept_name,
+    SUM(e.gender = 'M') AS males_total,
+    SUM(e.gender = 'F') AS females_total,
+	COUNT(e.emp_no) AS dept_total,
+	concat(round((SUM(e.gender = 'F')/COUNT(e.emp_no)*100),2),'%') as perc_females
+FROM 
+    employees e
+INNER JOIN 
+    dept_emp de ON e.emp_no = de.emp_no
+INNER JOIN 
+    departments d ON de.dept_no = d.dept_no
+GROUP BY 
+    d.dept_no,
+    d.dept_name;
+END //
+DELIMITER;
